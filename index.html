@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VESTRO — POS & ERP</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={
+  theme:{
+    extend:{
+      colors:{
+        vr:'#9E0B0F',vd:'#6E0508',vg:'#D4AF37',vc:'#FAF8F5'
+      }
+    }
+  }
+}
+</script>
+<style>
+body{background:#FAF8F5;font-family:'Plus Jakarta Sans',sans-serif;color:#1A1A1A}
+.hid{display:none!important}
+.in{width:100%;padding:7px 11px;border:1px solid #d1d5db;border-radius:8px;background:#FAF8F5;font-size:12px;outline:none;transition:border-color .15s}
+.in:focus{border-color:#9E0B0F;background:#fff}
+th{padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;background:#f3f4f6;color:#374151;font-weight:700}
+td{padding:9px 12px;vertical-align:top}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:16px}
+.b{padding:6px 12px;border-radius:8px;font-weight:700;font-size:12px;color:#fff;cursor:pointer;transition:transform .1s,opacity .15s;display:inline-flex;align-items:center;justify-content:center;gap:4px}
+.b:active{transform:scale(.98)}
+.b:hover{opacity:.92}
+
+#thermal-slip {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: 58mm auto;
+    margin: 0mm !important;
+  }
+  html, body {
+    width: 100% !important;
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body > *:not(#thermal-slip) {
+    display: none !important;
+  }
+  #thermal-slip {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 1mm 1.5mm !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 9.5pt !important;
+    line-height: 1.25 !important;
+    font-weight: 400 !important;
+    -webkit-font-smoothing: none !important;
+  }
+  #thermal-slip * {
+    color: #000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    -webkit-font-smoothing: none !important;
+    box-sizing: border-box !important;
+  }
+  .slip-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .slip-table td {
+    padding: 1.5px 0 !important;
+    vertical-align: top !important;
+  }
+  .slip-hr {
+    border: none !important;
+    border-top: 1px dashed #000 !important;
+    margin: 4px 0 !important;
+    height: 0 !important;
+    width: 100% !important;
+  }
+  .page-break {
+    page-break-after: always !important;
+    break-after: page !important;
+    height: 10mm !important;
+  }
+}
+</style>
+</head>
+<body class="min-h-screen text-sm">
+
+<!-- LOGIN SCREEN -->
+<div id="login-overlay" class="fixed inset-0 bg-stone-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="card max-w-sm w-full p-6 shadow-2xl border-vg text-center space-y-4">
+    <div class="w-16 h-16 mx-auto rounded-2xl bg-vd flex items-center justify-center border-2 border-vg">
+      <span class="text-vg font-bold text-2xl" style="font-family:Cinzel">V</span>
+    </div>
+    <div>
+      <h2 class="text-xl font-black text-vd" style="font-family:Cinzel">VESTRO</h2>
+      <p class="text-xs text-gray-500 font-semibold tracking-wider uppercase mt-1">Local POS Access</p>
+    </div>
+    <form onsubmit="handleLogin(event)" class="space-y-3 pt-2 text-left">
+      <div>
+        <label class="text-[11px] font-bold text-gray-600 block mb-1">Username</label>
+        <input id="l-user" type="text" required class="in !py-2.5 font-bold" placeholder="Username">
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-gray-600 block mb-1">Password</label>
+        <input id="l-pass" type="password" required class="in !py-2.5 font-bold" placeholder="••••••••">
+      </div>
+      <p id="l-err" class="text-xs text-rose-600 font-bold hidden text-center">Invalid credentials</p>
+      <button type="submit" class="b bg-vr w-full !py-2.5 !text-sm !font-black shadow-lg">Authenticate</button>
+    </form>
+  </div>
+</div>
+
+<!-- MENU ITEM EDIT / ADD MODAL -->
+<div id="menu-modal" class="hid fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+  <div class="card max-w-md w-full p-5 shadow-2xl border-vg space-y-3">
+    <div class="flex items-center justify-between border-b pb-2">
+      <h3 id="mm-title" class="font-extrabold text-vd text-base">Edit Menu Item</h3>
+      <button type="button" onclick="closeMenuModal()" class="text-gray-400 hover:text-gray-700 font-bold text-lg">✕</button>
+    </div>
+    <form onsubmit="saveMenuItem(event)" class="space-y-3 text-xs">
+      <input type="hidden" id="mm-id">
+      <div>
+        <label class="font-bold text-gray-600 block mb-1">Item Name</label>
+        <input id="mm-name" type="text" required class="in font-bold" placeholder="e.g. BBQ wings 5pcs">
+      </div>
+      <div>
+        <label class="font-bold text-gray-600 block mb-1">Category</label>
+        <select id="mm-cat-select" onchange="toggleNewCatInput()" class="in font-bold uppercase"></select>
+        <input id="mm-cat-new" type="text" class="in font-bold uppercase mt-2 hidden" placeholder="Type new category name...">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="font-bold text-amber-800 block mb-1">Purchase / Making Cost (৳)</label>
+          <input id="mm-cost" type="number" step="any" min="0" required class="in font-bold text-amber-900">
+        </div>
+        <div>
+          <label class="font-bold text-emerald-800 block mb-1">Selling Price (৳)</label>
+          <input id="mm-price" type="number" step="any" min="0" required class="in font-bold text-emerald-900">
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="closeMenuModal()" class="b bg-gray-500">Cancel</button>
+        <button type="submit" class="b bg-vr px-4">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ORDER EDIT / CUSTOMER INFO / QTY MODAL -->
+<div id="order-modal" class="hid fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+  <div class="card max-w-lg w-full p-5 shadow-2xl border-vg space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between border-b pb-2">
+      <div>
+        <h3 id="om-title" class="font-extrabold text-vd text-base">Edit Order</h3>
+        <p id="om-sub" class="text-[11px] text-gray-500"></p>
+      </div>
+      <button type="button" onclick="closeOrderModal()" class="text-gray-400 hover:text-gray-700 font-bold text-lg">✕</button>
+    </div>
+
+    <input type="hidden" id="om-id">
+
+    <div class="grid sm:grid-cols-2 gap-3 text-xs bg-vc p-3 rounded-xl border">
+      <div>
+        <label class="font-bold text-gray-600 block mb-1">Customer / Table Name</label>
+        <input id="om-cname" type="text" required class="in font-bold" placeholder="Customer name or Table">
+      </div>
+      <div>
+        <label class="font-bold text-gray-600 block mb-1">Customer Phone</label>
+        <input id="om-cphone" type="text" class="in font-bold" placeholder="01XXXXXXXXX">
+      </div>
+      <div>
+        <label class="font-bold text-gray-600 block mb-1">Payment Method</label>
+        <select id="om-pay" class="in font-bold">
+          <option value="Cash">Cash</option>
+          <option value="bKash">bKash</option>
+          <option value="Nagad">Nagad</option>
+          <option value="Bank">Bank</option>
+        </select>
+      </div>
+      <div>
+        <label class="font-bold text-gray-600 block mb-1">Discount (৳)</label>
+        <input id="om-disc" type="number" min="0" step="any" oninput="recalcModalOrder()" class="in font-bold">
+      </div>
+    </div>
+
+    <div class="space-y-2 text-xs">
+      <div class="flex items-center justify-between">
+        <label class="font-bold text-gray-700">Order Items & Quantities</label>
+        <div class="flex items-center gap-1.5">
+          <select id="om-add-item" class="in !w-44 font-semibold"></select>
+          <button type="button" onclick="addItemToEditingOrder()" class="b bg-vr !py-1.5 !px-2.5 text-[11px]">+ Add</button>
+        </div>
+      </div>
+      <div id="om-items" class="border rounded-xl divide-y max-h-48 overflow-y-auto bg-white"></div>
+    </div>
+
+    <div class="bg-gray-50 p-3 rounded-xl border text-xs space-y-1">
+      <div class="flex justify-between"><span>Subtotal:</span><b id="om-subtotal">৳0</b></div>
+      <div class="flex justify-between"><span>Food Cost:</span><b id="om-cost" class="text-amber-800">৳0</b></div>
+      <div class="flex justify-between text-sm font-black text-vr border-t pt-1"><span>Final Bill Total:</span><span id="om-total">৳0</span></div>
+    </div>
+
+    <div class="flex flex-wrap justify-end gap-2 pt-1">
+      <button type="button" onclick="closeOrderModal()" class="b bg-gray-500">Cancel</button>
+      <button type="button" onclick="saveEditedOrder(false)" class="b bg-blue-600">Save Order</button>
+      <button type="button" onclick="saveEditedOrder(true)" class="b bg-emerald-600">Save & Print Bill</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<header class="bg-vd text-white sticky top-0 z-40 border-b-2 border-vg">
+ <div class="max-w-7xl mx-auto px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+  <div class="flex items-center gap-2">
+   <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center border border-vg font-bold text-vg" style="font-family:Cinzel">V</div>
+   <div>
+     <div class="text-vg font-bold tracking-widest text-lg leading-none" style="font-family:Cinzel">VESTRO</div>
+     <div class="text-[9px] tracking-widest text-yellow-100/80 uppercase">Refined Hospitality</div>
+   </div>
+  </div>
+  <nav id="nav" class="flex gap-1 bg-black/30 p-1 rounded-xl text-xs font-semibold overflow-x-auto"></nav>
+  <div class="flex items-center gap-1.5 text-xs flex-wrap">
+   <span id="syncIndicator" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-black/40 text-[10px] font-bold text-emerald-400 border border-white/10" title="All data stored in this browser">
+     <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Local Ready
+   </span>
+   <div class="flex items-center gap-1.5 bg-black/35 px-2.5 py-1.5 rounded-lg border border-white/10">
+    <span id="btDot" class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
+    <span id="btLabel" class="font-medium max-w-[140px] truncate">BT: Disconnected</span>
+   </div>
+   <button type="button" id="btBtn" onclick="toggleBluetooth()" class="b bg-blue-600">Connect BT</button>
+   <button type="button" onclick="testPrint()" class="b bg-emerald-600">Test 58mm</button>
+   <button type="button" onclick="logout()" class="b bg-neutral-800 text-rose-300">Exit</button>
+  </div>
+ </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-3 py-4">
+
+<!-- POS -->
+<section id="v-pos" class="grid lg:grid-cols-12 gap-4">
+ <div class="lg:col-span-7 space-y-2">
+  <div class="card p-3 space-y-2">
+   <input id="ps" oninput="grid()" placeholder="Search menu..." class="in">
+   <div id="cats" class="flex gap-1.5 overflow-x-auto pb-1"></div>
+  </div>
+  <div id="grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[66vh] overflow-y-auto"></div>
+ </div>
+ <div class="lg:col-span-5">
+  <div class="card overflow-hidden sticky top-20 border-vg shadow-md">
+   <div class="bg-vd text-white px-4 py-2.5 flex justify-between items-center text-xs font-bold">
+     <span>Current Order Management</span>
+     <button type="button" onclick="resetCart()" class="text-rose-300 hover:text-white">Clear Cart</button>
+   </div>
+   <div class="p-3 grid grid-cols-2 gap-2 bg-vc">
+    <div>
+      <label class="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">Table / Customer Name</label>
+      <input id="cn" value="Table 1" class="in font-semibold" placeholder="e.g. Table 1 or Rahim">
+    </div>
+    <div>
+      <label class="text-[10px] font-bold text-gray-500 uppercase block mb-0.5">Mobile Number</label>
+      <input id="cp" class="in font-semibold" placeholder="Optional">
+    </div>
+   </div>
+   <div id="cart" class="p-3 max-h-[30vh] overflow-y-auto divide-y"></div>
+   <div class="p-3 bg-gray-50 border-t text-xs space-y-1">
+    <div class="flex justify-between"><span>Subtotal</span><b id="sub">৳0</b></div>
+    <div class="flex justify-between items-center">
+      <span>Discount (৳)</span>
+      <input id="disc" type="number" min="0" value="0" oninput="totals()" class="in !w-24 text-right font-bold">
+    </div>
+    <div class="flex justify-between text-base font-black text-vr border-t pt-1">
+      <span>Grand total</span><span id="tot">৳0</span>
+    </div>
+   </div>
+   <div class="p-3 space-y-2 border-t">
+    <div id="pays" class="grid grid-cols-4 gap-1"></div>
+    <div class="grid grid-cols-2 gap-2 pt-1">
+     <button type="button" onclick="doKot()" class="b bg-amber-600 py-3 text-xs tracking-wide shadow">KOT Print (Kitchen)</button>
+     <button type="button" onclick="doBill()" class="b bg-emerald-600 py-3 text-xs tracking-wide shadow">Bill & Checkout</button>
+    </div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- ORDERS -->
+<section id="v-orders" class="hid space-y-3">
+ <div class="card p-3 flex flex-wrap gap-2 items-center justify-between">
+  <div class="flex items-center gap-2 flex-wrap">
+    <b class="text-vd text-base">Orders & Receipts</b>
+    <button type="button" onclick="batchPrintBills()" class="b bg-emerald-700 text-[11px]">Print Selected Bills</button>
+    <button type="button" onclick="showAllDates('o', rOrders)" class="b !text-gray-700 bg-gray-200 text-[11px]">All Dates</button>
+  </div>
+  <div class="flex flex-wrap gap-2 items-center">
+   <input id="os" oninput="rOrders()" placeholder="Search invoice, customer, item..." class="in !w-48">
+   <span id="dr-o" class="flex gap-1 items-center"></span>
+   <button type="button" onclick="today('o')" class="b !text-vd bg-vg/30">Today</button>
+  </div>
+ </div>
+ <div class="card overflow-x-auto">
+  <table class="w-full text-xs">
+    <thead>
+      <tr>
+        <th class="w-8 text-center"><input type="checkbox" id="selectAllOrders" onchange="toggleSelectAllOrders(this)"></th>
+        <th>Invoice</th>
+        <th>Customer & Phone</th>
+        <th>Items Ordered</th>
+        <th>Total / Profit</th>
+        <th>Status</th>
+        <th>Payment</th>
+        <th class="text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="ob" class="divide-y"></tbody>
+  </table>
+ </div>
+</section>
+
+<!-- MENU -->
+<section id="v-menu" class="hid space-y-3">
+ <div class="card p-3 flex flex-wrap gap-2 items-center justify-between">
+  <div>
+    <b class="text-vd text-base">Menu & Food Costing</b>
+    <span class="text-xs text-gray-400 ml-2">Select category or edit Cost & Selling Price</span>
+  </div>
+  <div class="flex flex-wrap gap-2 items-center">
+   <input id="ms" oninput="rMenu()" placeholder="Search item..." class="in !w-44">
+   <select id="mc" onchange="rMenu()" class="in !w-44 font-bold text-vd"></select>
+   <button type="button" onclick="openMenuModal()" class="b bg-vr shadow">+ Add New Item</button>
+  </div>
+ </div>
+ <div class="card overflow-x-auto">
+  <table class="w-full text-xs">
+    <thead>
+      <tr>
+        <th>Item Name</th>
+        <th>Category</th>
+        <th>Making Cost</th>
+        <th>Selling Price</th>
+        <th>Gross Profit / Margin</th>
+        <th class="text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="mb" class="divide-y"></tbody>
+  </table>
+ </div>
+</section>
+
+<!-- EXPENSES -->
+<section id="v-exp" class="hid grid lg:grid-cols-12 gap-4">
+ <form onsubmit="addExp(event)" class="lg:col-span-4 card p-4 h-fit space-y-3 text-xs shadow-sm">
+  <b class="text-vd block border-b pb-2 text-sm font-extrabold">Log Expense / Cost / Saving</b>
+  <div>
+    <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Transaction Nature</label>
+    <select id="et" class="in font-black text-vd">
+      <option value="Expense">Operational Expense (Rent, Utility, Salary)</option>
+      <option value="Daily Cost">Kitchen & Raw Materials Cost</option>
+      <option value="Saving">Owner Saving / Bank Deposit</option>
+    </select>
+  </div>
+  <div>
+    <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Category</label>
+    <select id="ec" class="in font-semibold"></select>
+  </div>
+  <div class="grid grid-cols-2 gap-2">
+    <div>
+      <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Amount (৳)</label>
+      <input id="ea" type="number" step="any" min="1" required placeholder="৳ Amount" class="in font-bold text-vr">
+    </div>
+    <div>
+      <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Date</label>
+      <input id="ed" type="date" required class="in font-bold">
+    </div>
+  </div>
+  <div>
+    <label class="text-[10px] font-bold text-gray-500 uppercase block mb-1">Details Note</label>
+    <input id="en" required placeholder="e.g. 5kg Chicken, Staff tip" class="in">
+  </div>
+  <button class="b bg-vr w-full !py-2.5 shadow font-bold text-sm">Save Transaction</button>
+ </form>
+ <div class="lg:col-span-8 space-y-3">
+  <div class="card p-3 flex flex-wrap gap-2 items-center justify-between">
+   <input id="es" oninput="rExp()" placeholder="Filter by note or category..." class="in !w-52">
+   <div class="flex gap-1 items-center flex-wrap">
+     <span id="dr-e" class="flex gap-1 items-center"></span>
+     <button type="button" onclick="today('e')" class="b !text-vd bg-vg/30">Today</button>
+     <button type="button" onclick="showAllDates('e', rExp)" class="b !text-gray-700 bg-gray-200">All</button>
+   </div>
+  </div>
+  <div class="card overflow-x-auto">
+    <table class="w-full text-xs">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Category & Note</th>
+          <th class="text-right">Amount</th>
+          <th class="text-right">Action</th>
+        </tr>
+      </thead>
+      <tbody id="eb" class="divide-y"></tbody>
+    </table>
+  </div>
+ </div>
+</section>
+
+<!-- ANALYTICS -->
+<section id="v-ana" class="hid space-y-4">
+ <div class="card p-4 flex flex-wrap gap-2 items-center justify-between shadow-sm">
+  <div>
+    <b class="text-vd text-base">Profit, Loss & Financial Analytics</b>
+    <div class="flex items-center gap-3 mt-1">
+      <p class="text-xs text-gray-500">Filtered by date range with customer & item breakdown</p>
+      <label class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 cursor-pointer">
+        <input type="checkbox" id="includePendingAna" onchange="rAna()" checked>
+        Include KOT / Pending Orders
+      </label>
+    </div>
+  </div>
+  <div class="flex flex-wrap gap-1.5 items-center">
+   <span id="dr-a" class="flex gap-1 items-center"></span>
+   <button type="button" onclick="today('a')" class="b bg-vr">Today</button>
+   <button type="button" onclick="lastDays(7)" class="b !text-gray-700 bg-vc border">7 Days</button>
+   <button type="button" onclick="lastDays(30)" class="b !text-gray-700 bg-vc border">30 Days</button>
+   <button type="button" onclick="showAllDates('a', rAna)" class="b !text-gray-700 bg-gray-200">All Time</button>
+  </div>
+ </div>
+
+ <!-- HIGH-IMPACT KPIS -->
+ <div class="grid grid-cols-2 lg:grid-cols-6 gap-3" id="kpis"></div>
+
+ <!-- PAYMENT MODES -->
+ <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="pk"></div>
+
+ <!-- BREAKDOWN BY PRODUCT -->
+ <div class="card overflow-x-auto shadow-sm">
+  <div class="p-3 bg-gray-50 border-b flex justify-between items-center">
+    <b class="text-vd text-xs uppercase tracking-wider">Item Wise Sales, Customers & Profit Margin</b>
+  </div>
+  <table class="w-full text-xs">
+    <thead>
+      <tr>
+        <th>Menu Item</th>
+        <th>Category</th>
+        <th>Customers</th>
+        <th class="text-center">Sold Qty</th>
+        <th class="text-right">Total Revenue</th>
+        <th class="text-right">Total Food Cost</th>
+        <th class="text-right">Net Food Margin</th>
+      </tr>
+    </thead>
+    <tbody id="ab" class="divide-y"></tbody>
+  </table>
+ </div>
+</section>
+</main>
+
+<!-- 58mm Thermal Print Container -->
+<div id="thermal-slip"></div>
+
+<div id="toast" class="hid fixed bottom-4 right-4 bg-gray-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl z-50"></div>
+
+<script>
+/* ================= LOCAL AUTHENTICATION & CONFIG ================= */
+const AUTH_USER = "saif";
+const AUTH_PASS = "1952";
+
+const $ = id => document.getElementById(id);
+const fmt = n => '৳' + Number(n || 0).toLocaleString();
+
+const R = {
+  name: 'VESTRO',
+  tag: 'Refined Hospitality',
+  addr: 'Uttar Badda, Holland Center Middle, Dhaka 1212',
+  phone: '+880 1624-187793'
+};
+
+const DEF_MENU = [
+ ['French fries','APPETIZER',75,145],['Spring roll 4p','APPETIZER',85,159],['Burger ita','APPETIZER',120,225],['Chicken & nice','APPETIZER',120,225],
+ ['Chicken strips 5pcs','CHICKEN',115,209],['Regular wings 5pcs','CHICKEN',105,195],['Naga wings 5pcs','CHICKEN',120,219],['BBQ wings 5pcs','CHICKEN',125,225],['Drumstick 3pcs','CHICKEN',135,245],['Drumstick 5pcs','CHICKEN',195,355],['BBQ drumstick 3pcs','CHICKEN',145,269],['BBQ drumstick 5pcs','CHICKEN',205,369],
+ ['Chicken corn soup (1p)','SOUP',85,159],['Chicken corn soup (1:3p)','SOUP',220,419],['Thai clear soup (1p)','SOUP',95,185],['Thai clear soup (1:3p)','SOUP',240,460],['Thai soup (1p)','SOUP',105,195],['Thai soup (1:3p)','SOUP',255,480],
+ ['Grilled sandwich','SANDWICH',130,245],['Chocolate milkshake','SHAKE',100,199],['Oreo milkshake','SHAKE',110,219],['Mango milkshake','SHAKE',125,249],['Goa lemon','SHAKE',120,249],['Cold coffee','COFFEE',70,145],
+ ['Mojito soda','JUICE',45,99],['Mojito Cola soda','JUICE',45,99],['Lemon iced tea','JUICE',70,150],['Brazilian Lemoned','JUICE',80,170],['Mint iced tea','JUICE',80,170],['Refresh mint','JUICE',90,199],['Setra','JUICE',90,199],['Ice cream','DESSERT',50,99],
+ ['Chinese garlic chicken','MAIN DISH',115,215],['Chicken star fry','MAIN DISH',135,245],['Beef pudding','MAIN DISH',195,345],['Chicken & rice','MAIN DISH',135,250],['Malai Chicken','MAIN DISH',145,265],['Chicken gyro','MAIN DISH',150,275],['Khausia','MAIN DISH',155,280],['Chicken basil','MAIN DISH',155,280],['Pho soup','MAIN DISH',155,280],['Chaki boil','MAIN DISH',160,289],['Beef basil','MAIN DISH',220,389],['Lemon cream plate','MAIN DISH',215,389],
+ ['Garlic sauce','ADDITIONAL',20,50],['Coleslaw','ADDITIONAL',25,60],['Egg fried rice','ADDITIONAL',48,99],['Spicy fried rice','ADDITIONAL',50,99],['Mashed potato','ADDITIONAL',48,99],['Mineral Water (500ml)','EXTRA',15,20],
+ ['Chicken pad thai','PAD THAI',120,219],['Mixed pad thai','PAD THAI',135,249],['Prawn pad thai','PAD THAI',165,299],['Mixed chowmine','CHOWMINE',190,349],
+ ['Chicken pepper steak','STEAK',145,265],['Mushroom Chicken steak','STEAK',160,290],['Red sauce pasta','PASTA',105,199],['Alfredo pasta','PASTA',185,339]
+].map((r,i)=>({id:'m'+(i+1),name:r[0],category:r[1],cost:Number(r[2]),price:Number(r[3])}));
+
+const load = (k,d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch(e){ return d; } };
+let menu = load('vestro_menu', DEF_MENU);
+let orders = load('vestro_orders', []);
+let exps = load('vestro_expenses', []);
+let cart = [], catSel = 'ALL', pay = 'Cash', catList = [];
+let selectedOrders = new Set();
+let editingOrderDraft = null;
+
+function toLocalYMD(dateObj) {
+  const off = dateObj.getTimezoneOffset() * 6e4;
+  return new Date(dateObj.getTime() - off).toISOString().slice(0, 10);
+}
+
+const todayStr = () => toLocalYMD(new Date());
+
+function cleanYMD(val) {
+  if (!val) return '';
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return toLocalYMD(d);
+  return s.slice(0, 10);
+}
+
+function toast(m){
+  const t = $('toast');
+  t.textContent = m;
+  t.classList.remove('hid');
+  clearTimeout(toast.h);
+  toast.h = setTimeout(() => t.classList.add('hid'), 2600);
+}
+
+/* ================= AUTHENTICATION ================= */
+function checkAuth() {
+  const authed = sessionStorage.getItem('vestro_auth') === 'true';
+  $('login-overlay').classList.toggle('hid', authed);
+}
+
+function handleLogin(e) {
+  e.preventDefault();
+  const u = $('l-user').value.trim();
+  const p = $('l-pass').value.trim();
+  if (u === AUTH_USER && p === AUTH_PASS) {
+    sessionStorage.setItem('vestro_auth', 'true');
+    $('login-overlay').classList.add('hid');
+    $('l-err').classList.add('hidden');
+    refreshActiveViews();
+  } else {
+    $('l-err').classList.remove('hidden');
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('vestro_auth');
+  $('l-user').value = '';
+  $('l-pass').value = '';
+  checkAuth();
+}
+
+/* ================= PURE LOCAL STORAGE ENGINE ================= */
+function save() {
+  try {
+    localStorage.setItem('vestro_menu', JSON.stringify(menu));
+    localStorage.setItem('vestro_orders', JSON.stringify(orders));
+    localStorage.setItem('vestro_expenses', JSON.stringify(exps));
+  } catch (e) {
+    console.error('LocalStorage write failed:', e);
+  }
+}
+
+function refreshActiveViews() {
+  cats();
+  grid();
+  rOrders();
+  rMenu();
+  rExp();
+  rAna();
+}
+
+/* ================= 58MM BLUETOOTH & THERMAL CORE ================= */
+let btDevice = null, btCharacteristic = null;
+let savedBtName = localStorage.getItem('vestro_bt_name') || '';
+
+function updateBtUI(connected, name = '') {
+  const dot = $('btDot'), lbl = $('btLabel'), btn = $('btBtn');
+  if (connected) {
+    dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block';
+    lbl.textContent = 'BT: ' + (name || 'Connected');
+    btn.textContent = 'Disconnect';
+    btn.className = 'b bg-rose-600';
+  } else {
+    dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 inline-block';
+    lbl.textContent = savedBtName ? ('BT: ' + savedBtName) : 'BT: Disconnected';
+    btn.textContent = 'Connect BT';
+    btn.className = 'b bg-blue-600';
+  }
+}
+
+async function findWritableCharacteristic(server) {
+  const services = await server.getPrimaryServices();
+  for (const service of services) {
+    const chars = await service.getCharacteristics();
+    for (const ch of chars) {
+      if (ch.properties.writeWithoutResponse || ch.properties.write) return ch;
+    }
+  }
+  throw new Error('No writable characteristic found');
+}
+
+async function connectBluetooth() {
+  if (!navigator.bluetooth) {
+    toast('Web Bluetooth not supported in this browser. Use Chrome/Edge.');
+    return false;
+  }
+  try {
+    toast('Searching Bluetooth 58mm printer...');
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [
+        '000018f0-0000-1000-8000-00805f9b34fb',
+        'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+        '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+        '0000ff00-0000-1000-8000-00805f9b34fb',
+        '0000ffe0-0000-1000-8000-00805f9b34fb'
+      ]
+    });
+    device.addEventListener('gattserverdisconnected', () => {
+      btCharacteristic = null;
+      updateBtUI(false, device.name);
+      toast('Printer disconnected');
+    });
+    const server = await device.gatt.connect();
+    btCharacteristic = await findWritableCharacteristic(server);
+    btDevice = device;
+    savedBtName = device.name || '58mm Thermal';
+    localStorage.setItem('vestro_bt_name', savedBtName);
+    updateBtUI(true, savedBtName);
+    toast('Connected: ' + savedBtName);
+    return true;
+  } catch (err) {
+    toast('Connection cancelled');
+    return false;
+  }
+}
+
+function disconnectBluetooth() {
+  if (btDevice && btDevice.gatt && btDevice.gatt.connected) btDevice.gatt.disconnect();
+  btCharacteristic = null;
+  updateBtUI(false, savedBtName);
+}
+
+async function toggleBluetooth() {
+  if (btDevice && btDevice.gatt && btDevice.gatt.connected && btCharacteristic) disconnectBluetooth();
+  else await connectBluetooth();
+}
+
+const COLS = 32;
+const asc = s => String(s || '').replace(/৳/g, 'Tk ').replace(/[^\x20-\x7E]/g, '').trim();
+
+function lr(left, right) {
+  left = asc(left);
+  right = asc(right);
+  if (left.length + right.length + 1 > COLS) {
+    left = left.slice(0, Math.max(1, COLS - right.length - 1));
+  }
+  const spaces = Math.max(1, COLS - left.length - right.length);
+  return left + ' '.repeat(spaces) + right;
+}
+
+function center(str) {
+  str = asc(str).slice(0, COLS);
+  const pad = Math.max(0, Math.floor((COLS - str.length) / 2));
+  return ' '.repeat(pad) + str;
+}
+
+function wrapLines(str, maxLen = COLS) {
+  const clean = asc(str);
+  if (!clean) return [];
+  const words = clean.split(/\s+/);
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    if (!cur) cur = w.slice(0, maxLen);
+    else if (cur.length + 1 + w.length <= maxLen) cur += ' ' + w;
+    else { lines.push(cur); cur = w.slice(0, maxLen); }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function buildEscPos58(o, kot) {
+  const ESC = 0x1B, GS = 0x1D;
+  const out = [];
+  const push = arr => { for (let i = 0; i < arr.length; i++) out.push(arr[i]); };
+  const writeStr = s => {
+    const clean = asc(s);
+    for (let i = 0; i < clean.length; i++) out.push(clean.charCodeAt(i));
+    out.push(0x0A);
+  };
+  const sep = () => writeStr('-'.repeat(COLS));
+
+  push([ESC, 0x40]);
+  push([GS, 0x21, 0x00]);
+  push([ESC, 0x45, 0x00]);
+
+  writeStr(center(R.name));
+  writeStr(center(kot ? '*** KITCHEN ORDER TICKET ***' : R.tag));
+  if (!kot) {
+    wrapLines(R.addr, COLS).forEach(l => writeStr(center(l)));
+    writeStr(center('Tel: ' + R.phone));
+  }
+
+  sep();
+  writeStr(lr('Inv: ' + o.invoiceNo, o.time));
+  writeStr(lr('Date: ' + asc(o.date), 'Cust: ' + asc(o.customerName)));
+  if (!kot && o.customerPhone && o.customerPhone !== 'N/A') {
+    writeStr(center('Phone: ' + asc(o.customerPhone)));
+  }
+
+  sep();
+  if (kot) {
+    o.items.forEach(it => {
+      writeStr(lr(it.name, 'x' + it.qty));
+    });
+  } else {
+    o.items.forEach(it => {
+      writeStr(asc(it.name));
+      writeStr(lr('  ' + it.qty + ' x ' + it.price, (it.price * it.qty) + ' Tk'));
+    });
+  }
+
+  sep();
+  if (!kot) {
+    writeStr(lr('Subtotal:', o.subtotal + ' Tk'));
+    if (o.discount > 0) writeStr(lr('Discount:', '-' + o.discount + ' Tk'));
+    writeStr(lr('TOTAL BILL:', o.total + ' Tk'));
+    sep();
+    writeStr(center('Paid via: ' + asc(o.paymentMethod)));
+    writeStr(center('Thank you! Visit again.'));
+  }
+
+  push([0x0A, 0x0A, 0x0A, 0x0A]);
+  return new Uint8Array(out);
+}
+
+async function sendEscPosToBluetooth(data) {
+  if (!btDevice || !btDevice.gatt || !btDevice.gatt.connected || !btCharacteristic) {
+    const ok = await connectBluetooth();
+    if (!ok) return false;
+  }
+  const chunkSize = 100;
+  for (let i = 0; i < data.length; i += chunkSize) {
+    const chunk = data.slice(i, i + chunkSize);
+    if (btCharacteristic.properties.writeWithoutResponse) {
+      await btCharacteristic.writeValueWithoutResponse(chunk);
+    } else {
+      await btCharacteristic.writeValue(chunk);
+    }
+    await new Promise(r => setTimeout(r, 20));
+  }
+  return true;
+}
+
+/* ================= 58MM BROWSER PRINT SLIP ================= */
+function renderSingleSlipHtml(o, kot) {
+  const hr = `<hr class="slip-hr">`;
+  const rows = kot
+    ? `<table class="slip-table">` + o.items.map(it => `
+        <tr>
+          <td style="font-size:10pt;font-weight:600;padding-bottom:2px">${it.name}</td>
+          <td style="font-size:10.5pt;font-weight:700;text-align:right;white-space:nowrap;padding-left:6px">x${it.qty}</td>
+        </tr>`).join('') + `</table>`
+    : o.items.map(it => `
+        <div style="margin-bottom:3px">
+          <div style="font-size:9.5pt;font-weight:400;line-height:1.2">${it.name}</div>
+          <table class="slip-table">
+            <tr>
+              <td style="font-size:9pt;font-weight:400">${it.qty} x ${it.price}</td>
+              <td style="font-size:9.5pt;font-weight:400;text-align:right">${it.price * it.qty} Tk</td>
+            </tr>
+          </table>
+        </div>`).join('');
+
+  return `
+    <div style="width:100%;color:#000 !important;text-align:center">
+      <div style="text-align:center;margin-bottom:4px">
+        <div style="font-weight:800;font-size:15pt;line-height:1;font-family:Cinzel,serif">VESTRO</div>
+      </div>
+      <div style="font-weight:700;font-size:12.5pt;letter-spacing:1px;line-height:1.2">${R.name}</div>
+      <div style="font-size:8.5pt;margin-top:2px;letter-spacing:0.5px">${kot ? '*** KITCHEN ORDER TICKET ***' : R.tag}</div>
+      ${kot ? '' : `
+        <div style="font-size:8pt;line-height:1.25;margin-top:3px">${R.addr}</div>
+        <div style="font-size:8.5pt;margin-top:2px;font-weight:600">Tel: ${R.phone}</div>
+      `}
+      ${hr}
+      <table class="slip-table" style="font-size:9pt;text-align:left">
+        <tr>
+          <td>Inv: ${o.invoiceNo}</td>
+          <td style="text-align:right">${o.time}</td>
+        </tr>
+        <tr>
+          <td>Date: ${o.date}</td>
+          <td style="text-align:right"><b>${o.customerName}</b></td>
+        </tr>
+        ${(!kot && o.customerPhone && o.customerPhone !== 'N/A') ? `<tr><td colspan="2" style="text-align:center">Phone: ${o.customerPhone}</td></tr>` : ''}
+      </table>
+      ${hr}
+      <div style="text-align:left">${rows}</div>
+      ${hr}
+      ${kot ? `
+        <div style="text-align:center;font-size:9pt;font-weight:700">STATUS: ${o.status || 'PENDING'}</div>
+      ` : `
+        <table class="slip-table" style="font-size:9.5pt">
+          <tr>
+            <td>Subtotal:</td>
+            <td style="text-align:right">${o.subtotal} Tk</td>
+          </tr>
+          ${o.discount > 0 ? `
+          <tr>
+            <td>Discount:</td>
+            <td style="text-align:right">-${o.discount} Tk</td>
+          </tr>` : ''}
+          <tr>
+            <td style="font-weight:700;padding-top:2px">TOTAL BILL:</td>
+            <td style="text-align:right;font-weight:700;padding-top:2px">${o.total} Tk</td>
+          </tr>
+        </table>
+        ${hr}
+        <div style="font-size:9pt">Paid via: <b>${o.paymentMethod}</b></div>
+        <div style="font-size:8.5pt;margin-top:5px">Thank you! Visit again.</div>
+      `}
+      <div style="height:6mm"></div>
+    </div>
+  `;
+}
+
+async function printOrder(o, kot) {
+  const escpos = buildEscPos58(o, kot);
+  if (btDevice && btDevice.gatt && btDevice.gatt.connected && btCharacteristic) {
+    try {
+      const sent = await sendEscPosToBluetooth(escpos);
+      if (sent) {
+        toast((kot ? 'KOT' : 'Bill') + ' sent to Bluetooth ✓');
+        return;
+      }
+    } catch (e) {
+      toast('Bluetooth busy, opening print dialog...');
+    }
+  }
+
+  const slip = $('thermal-slip');
+  slip.innerHTML = renderSingleSlipHtml(o, kot);
+  setTimeout(() => { window.print(); }, 100);
+}
+
+function testPrint() {
+  printOrder({
+    invoiceNo: 'TEST-58',
+    date: todayStr(),
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    customerName: 'Table 1',
+    customerPhone: '+880 1624-187793',
+    items: [{ name: 'Chicken basil', price: 280, qty: 1 }, { name: 'Cold coffee', price: 145, qty: 2 }],
+    subtotal: 570,
+    discount: 0,
+    total: 570,
+    paymentMethod: 'Cash',
+    status: 'COMPLETED'
+  }, false);
+}
+
+function batchPrintBills() {
+  if (!selectedOrders.size) return toast('Select at least one order to print bills');
+  const targetOrders = orders.filter(o => selectedOrders.has(o.id));
+  if (!targetOrders.length) return;
+
+  const slip = $('thermal-slip');
+  slip.innerHTML = targetOrders.map((o, index) => {
+    return `<div class="${index < targetOrders.length - 1 ? 'page-break' : ''}">${renderSingleSlipHtml(o, false)}</div>`;
+  }).join('');
+
+  setTimeout(() => { window.print(); }, 150);
+}
+
+/* ================= NAVIGATION & DATE RANGE ================= */
+const TABS = [
+  ['pos', 'POS Counter'],
+  ['orders', 'Orders & Receipts'],
+  ['menu', 'Menu & Food Cost'],
+  ['exp', 'Log Expense & Cost'],
+  ['ana', 'Profit & Analytics']
+];
+
+function switchTab(n) {
+  TABS.forEach(([k]) => $('v-' + k).classList.toggle('hid', k !== n));
+  $('nav').innerHTML = TABS.map(([k, l]) => `
+    <button type="button" onclick="switchTab('${k}')" class="px-3 py-1.5 rounded-lg whitespace-nowrap ${k === n ? 'bg-vg text-vd font-bold' : 'text-white/80'}">${l}</button>
+  `).join('');
+  ({ orders: rOrders, menu: rMenu, exp: rExp, ana: rAna }[n] || (() => {}))();
+}
+
+const dr = (p, fn) => `<input type="date" id="${p}-f" onchange="${fn}()" class="in !w-32 font-bold"><span class="text-gray-400 font-bold">to</span><input type="date" id="${p}-t" onchange="${fn}()" class="in !w-32 font-bold">`;
+
+const inR = (d, p) => {
+  const f = $(p + '-f').value;
+  const t = $(p + '-t').value;
+  const cd = cleanYMD(d);
+  if (!cd) return true;
+  if (f && cd < f) return false;
+  if (t && cd > t) return false;
+  return true;
+};
+
+function today(p) {
+  $(p + '-f').value = $(p + '-t').value = todayStr();
+  ({ o: rOrders, e: rExp, a: rAna })[p]();
+}
+
+function showAllDates(p, fn) {
+  $(p + '-f').value = '';
+  $(p + '-t').value = '';
+  fn();
+}
+
+function lastDays(n) {
+  const e = new Date(), s = new Date();
+  s.setDate(e.getDate() - n + 1);
+  $('a-f').value = toLocalYMD(s);
+  $('a-t').value = toLocalYMD(e);
+  rAna();
+}
+
+/* ================= POS LOGIC & KOT MERGE ================= */
+function cats() {
+  catList = ['ALL', ...new Set(menu.map(m => m.category))];
+  $('cats').innerHTML = catList.map((c, i) => `
+    <button type="button" onclick="setCat(${i})" class="px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap ${catSel === c ? 'bg-vr text-white shadow' : 'bg-vc text-gray-700 border'}">${c}</button>
+  `).join('');
+}
+
+function setCat(i) {
+  catSel = catList[i];
+  cats();
+  grid();
+}
+
+function grid() {
+  const q = $('ps').value.toLowerCase().trim();
+  const f = menu.filter(m => (catSel === 'ALL' || m.category === catSel) && (m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q)));
+  $('grid').innerHTML = f.length ? f.map(m => `
+    <div onclick="addCart('${m.id}')" class="card p-2.5 cursor-pointer select-none hover:border-vg flex flex-col justify-between transition-shadow hover:shadow-md">
+      <div>
+        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-vc text-vr border border-vg/30">${m.category}</span>
+        <h4 class="font-bold text-xs mt-1 text-gray-800">${m.name}</h4>
+      </div>
+      <div class="mt-2 pt-1.5 border-t border-dashed flex justify-between items-center">
+        <b class="text-vd text-sm">${fmt(m.price)}</b>
+        <span class="w-6 h-6 rounded-full bg-vr/10 text-vr flex items-center justify-center font-black">+</span>
+      </div>
+    </div>
+  `).join('') : '<div class="col-span-full text-center py-8 text-gray-400">No menu items found.</div>';
+}
+
+function addCart(id) {
+  const m = menu.find(x => x.id === id);
+  if (!m) return;
+  const c = cart.find(x => x.id === id);
+  c ? c.qty++ : cart.push({ id, name: m.name, category: m.category, price: Number(m.price) || 0, cost: Number(m.cost) || 0, qty: 1 });
+  rCart();
+}
+
+function qty(id, d) {
+  const i = cart.findIndex(x => x.id === id);
+  if (i < 0) return;
+  cart[i].qty += d;
+  if (cart[i].qty <= 0) cart.splice(i, 1);
+  rCart();
+}
+
+function rCart() {
+  $('cart').innerHTML = cart.length ? cart.map(i => `
+    <div class="py-2 flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <p class="font-bold text-xs truncate text-gray-900">${i.name}</p>
+        <p class="text-[10px] text-gray-500">${fmt(i.price)} × ${i.qty} = <b class="text-gray-900">${fmt(i.price * i.qty)}</b></p>
+      </div>
+      <div class="flex items-center gap-1 bg-vc px-1.5 py-0.5 rounded-lg border">
+        <button type="button" onclick="qty('${i.id}',-1)" class="w-5 font-bold text-vr">−</button>
+        <b class="w-4 text-center text-xs">${i.qty}</b>
+        <button type="button" onclick="qty('${i.id}',1)" class="w-5 font-bold text-vr">+</button>
+      </div>
+    </div>
+  `).join('') : '<div class="text-center py-7 text-gray-400 text-xs">Tap menu items to start an order.</div>';
+  totals();
+}
+
+function totals() {
+  const s = cart.reduce((a, i) => a + (Number(i.price) || 0) * (Number(i.qty) || 1), 0);
+  const d = Number($('disc').value) || 0;
+  $('sub').textContent = fmt(s);
+  $('tot').textContent = fmt(Math.max(0, s - d));
+}
+
+function rPays() {
+  $('pays').innerHTML = ['Cash', 'bKash', 'Nagad', 'Bank'].map(m => `
+    <button type="button" onclick="pay='${m}';rPays()" class="py-1.5 rounded-lg border text-xs font-bold ${pay === m ? 'bg-vr text-white border-vr shadow' : 'bg-white text-gray-700'}">${m}</button>
+  `).join('');
+}
+
+function resetCart() {
+  cart = [];
+  $('cn').value = 'Table 1';
+  $('cp').value = '';
+  $('disc').value = 0;
+  pay = 'Cash';
+  rPays();
+  rCart();
+}
+
+function mkOrder(status = 'COMPLETED') {
+  const sub = cart.reduce((a, i) => a + (Number(i.price) || 0) * (Number(i.qty) || 1), 0);
+  const cost = cart.reduce((a, i) => a + (Number(i.cost) || 0) * (Number(i.qty) || 1), 0);
+  const disc = Number($('disc').value) || 0;
+  const tot = Math.max(0, sub - disc);
+  return {
+    id: 'ORD-' + Date.now(),
+    invoiceNo: 'V' + Math.floor(1e5 + Math.random() * 9e5),
+    date: todayStr(),
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    customerName: $('cn').value.trim() || 'Table 1',
+    customerPhone: $('cp').value.trim() || 'N/A',
+    items: JSON.parse(JSON.stringify(cart)),
+    subtotal: sub,
+    discount: disc,
+    total: tot,
+    totalCost: cost,
+    profit: tot - cost,
+    paymentMethod: pay,
+    status: status
+  };
+}
+
+function doKot() {
+  if (!cart.length) return toast('Cart is empty');
+  const tName = $('cn').value.trim() || 'Table 1';
+  const cPhone = $('cp').value.trim();
+  const existingPending = orders.find(o => o.status === 'PENDING' && o.customerName.toLowerCase() === tName.toLowerCase());
+
+  let currentKotOrder;
+
+  if (existingPending) {
+    const merge = confirm(`"${tName}" has an existing PENDING order (${existingPending.invoiceNo}).\n\nAppend these new items to it?`);
+    if (merge) {
+      if (cPhone) existingPending.customerPhone = cPhone;
+      cart.forEach(cItem => {
+        const found = existingPending.items.find(it => it.name === cItem.name);
+        if (found) found.qty = Number(found.qty || 0) + Number(cItem.qty || 1);
+        else existingPending.items.push(JSON.parse(JSON.stringify(cItem)));
+      });
+
+      existingPending.subtotal = existingPending.items.reduce((a, i) => a + (Number(i.price) || 0) * (Number(i.qty) || 1), 0);
+      existingPending.totalCost = existingPending.items.reduce((a, i) => a + (Number(i.cost) || 0) * (Number(i.qty) || 1), 0);
+      existingPending.total = Math.max(0, existingPending.subtotal - (Number(existingPending.discount) || 0));
+      existingPending.profit = existingPending.total - existingPending.totalCost;
+      existingPending.time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      currentKotOrder = {
+        ...existingPending,
+        items: JSON.parse(JSON.stringify(cart))
+      };
+      save();
+      toast(`Appended to ${existingPending.invoiceNo}`);
+    } else {
+      currentKotOrder = mkOrder('PENDING');
+      orders.unshift(currentKotOrder);
+      save();
+    }
+  } else {
+    currentKotOrder = mkOrder('PENDING');
+    orders.unshift(currentKotOrder);
+    save();
+  }
+
+  printOrder(currentKotOrder, true);
+  resetCart();
+  rOrders();
+  rAna();
+}
+
+function doBill() {
+  if (!cart.length) return toast('Cart is empty');
+  const tName = $('cn').value.trim() || 'Table 1';
+  const pendingIndex = orders.findIndex(o => o.status === 'PENDING' && o.customerName.toLowerCase() === tName.toLowerCase());
+
+  let o = mkOrder('COMPLETED');
+  if (pendingIndex > -1) {
+    orders.splice(pendingIndex, 1);
+  }
+  orders.unshift(o);
+  save();
+  resetCart();
+  printOrder(o, false);
+  rOrders();
+  rAna();
+}
+
+/* ================= ORDERS TAB & ORDER EDITOR MODAL ================= */
+function toggleSelectAllOrders(master) {
+  const cbs = document.querySelectorAll('.order-cb');
+  cbs.forEach(cb => {
+    cb.checked = master.checked;
+    if (master.checked) selectedOrders.add(cb.value);
+    else selectedOrders.delete(cb.value);
+  });
+}
+
+function toggleOrderSelect(id, checked) {
+  if (checked) selectedOrders.add(id);
+  else selectedOrders.delete(id);
+}
+
+function rOrders() {
+  const q = $('os').value.toLowerCase().trim();
+  const f = orders.filter(o => {
+    const matchQ = !q ||
+      String(o.invoiceNo || '').toLowerCase().includes(q) ||
+      String(o.customerName || '').toLowerCase().includes(q) ||
+      String(o.customerPhone || '').toLowerCase().includes(q) ||
+      (o.items || []).some(it => String(it.name || '').toLowerCase().includes(q));
+    return matchQ && inR(o.date, 'o');
+  });
+
+  $('ob').innerHTML = f.length ? f.map(o => {
+    const isPending = String(o.status || '').toUpperCase() === 'PENDING';
+    const itemsArr = Array.isArray(o.items) ? o.items : [];
+    const itemsHtml = itemsArr.map(i => `
+      <div class="flex items-center justify-between gap-2 py-0.5 border-b border-dashed border-gray-100 last:border-0">
+        <span class="font-semibold text-gray-800">${i.name}</span>
+        <span class="text-[11px] font-extrabold text-vr whitespace-nowrap">×${i.qty} <span class="text-gray-500 font-normal">(${fmt((Number(i.price)||0)*(Number(i.qty)||1))})</span></span>
+      </div>
+    `).join('');
+
+    return `
+      <tr class="${isPending ? 'bg-amber-50/70' : ''}">
+        <td class="text-center">
+          <input type="checkbox" class="order-cb" value="${o.id}" ${selectedOrders.has(o.id) ? 'checked' : ''} onchange="toggleOrderSelect('${o.id}', this.checked)">
+        </td>
+        <td>
+          <b class="text-vd">${o.invoiceNo}</b>
+          <div class="text-[10px] text-gray-500">${cleanYMD(o.date)} ${o.time || ''}</div>
+        </td>
+        <td>
+          <b class="text-gray-900">${o.customerName || 'Table 1'}</b>
+          <div class="text-[11px] text-gray-600 font-medium">${o.customerPhone && o.customerPhone !== 'N/A' ? o.customerPhone : 'No phone'}</div>
+        </td>
+        <td class="min-w-[190px] max-w-[260px]">
+          ${itemsHtml || '<span class="text-gray-400">No items</span>'}
+        </td>
+        <td>
+          <b class="text-sm text-gray-900">${fmt(o.total)}</b>
+          <div class="text-[10px] text-emerald-600 font-bold">Profit ${fmt(o.profit)}</div>
+        </td>
+        <td>
+          <span class="px-2 py-0.5 rounded text-[10px] font-black ${isPending ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-800'}">
+            ${isPending ? 'PENDING (KOT)' : 'COMPLETED'}
+          </span>
+        </td>
+        <td>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-800">${o.paymentMethod}</span>
+        </td>
+        <td class="text-right whitespace-nowrap space-x-1">
+          <button type="button" onclick="openOrderModal('${o.id}')" class="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-bold text-[10px]">Edit</button>
+          ${isPending ? `<button type="button" onclick="finalizePendingBill('${o.id}')" class="px-2 py-0.5 rounded bg-emerald-600 text-white font-bold text-[10px]">Complete Bill</button>` : ''}
+          <button type="button" onclick="reprint('${o.id}', true)" class="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-[10px]">KOT</button>
+          <button type="button" onclick="reprint('${o.id}', false)" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">Bill</button>
+          <button type="button" onclick="delOrder('${o.id}')" class="text-rose-500 font-bold px-1.5 py-0.5 hover:bg-rose-50 rounded">✕</button>
+        </td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="8" class="text-center py-8 text-gray-400">No orders found. Try clicking "All Dates" or check date filter.</td></tr>';
+}
+
+function openOrderModal(id) {
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+  editingOrderDraft = JSON.parse(JSON.stringify(o));
+  editingOrderDraft.items = Array.isArray(editingOrderDraft.items) ? editingOrderDraft.items : [];
+
+  $('order-modal').classList.remove('hid');
+  $('om-id').value = o.id;
+  $('om-title').textContent = `Edit Order — ${o.invoiceNo}`;
+  $('om-sub').textContent = `${cleanYMD(o.date)} ${o.time || ''} • Status: ${o.status || 'COMPLETED'}`;
+  $('om-cname').value = o.customerName || '';
+  $('om-cphone').value = (o.customerPhone && o.customerPhone !== 'N/A') ? o.customerPhone : '';
+  $('om-pay').value = o.paymentMethod || 'Cash';
+  $('om-disc').value = Number(o.discount) || 0;
+
+  $('om-add-item').innerHTML = menu.map(m => `<option value="${m.id}">${m.name} (${fmt(m.price)})</option>`).join('');
+  renderModalOrderItems();
+}
+
+function closeOrderModal() {
+  $('order-modal').classList.add('hid');
+  editingOrderDraft = null;
+}
+
+function addItemToEditingOrder() {
+  if (!editingOrderDraft) return;
+  const mId = $('om-add-item').value;
+  const m = menu.find(x => x.id === mId);
+  if (!m) return;
+  const existing = editingOrderDraft.items.find(it => it.name === m.name);
+  if (existing) {
+    existing.qty = (Number(existing.qty) || 1) + 1;
+  } else {
+    editingOrderDraft.items.push({
+      id: m.id,
+      name: m.name,
+      category: m.category,
+      price: Number(m.price) || 0,
+      cost: Number(m.cost) || 0,
+      qty: 1
+    });
+  }
+  renderModalOrderItems();
+}
+
+function changeModalItemQty(idx, delta) {
+  if (!editingOrderDraft || !editingOrderDraft.items[idx]) return;
+  const nextQty = (Number(editingOrderDraft.items[idx].qty) || 1) + delta;
+  if (nextQty <= 0) {
+    editingOrderDraft.items.splice(idx, 1);
+  } else {
+    editingOrderDraft.items[idx].qty = nextQty;
+  }
+  renderModalOrderItems();
+}
+
+function renderModalOrderItems() {
+  if (!editingOrderDraft) return;
+  const wrap = $('om-items');
+  if (!editingOrderDraft.items.length) {
+    wrap.innerHTML = `<div class="p-4 text-center text-gray-400">No items in order. Add an item above.</div>`;
+  } else {
+    wrap.innerHTML = editingOrderDraft.items.map((it, idx) => `
+      <div class="p-2.5 flex items-center justify-between gap-2">
+        <div>
+          <div class="font-bold text-gray-900">${it.name}</div>
+          <div class="text-[11px] text-gray-500">${fmt(it.price)} each • Line: <b>${fmt((Number(it.price)||0)*(Number(it.qty)||1))}</b></div>
+        </div>
+        <div class="flex items-center gap-1.5 bg-vc px-2 py-1 rounded-lg border">
+          <button type="button" onclick="changeModalItemQty(${idx}, -1)" class="w-5 font-black text-vr">−</button>
+          <span class="w-5 text-center font-extrabold">${it.qty}</span>
+          <button type="button" onclick="changeModalItemQty(${idx}, 1)" class="w-5 font-black text-vr">+</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  recalcModalOrder();
+}
+
+function recalcModalOrder() {
+  if (!editingOrderDraft) return;
+  const subtotal = editingOrderDraft.items.reduce((a, i) => a + (Number(i.price) || 0) * (Number(i.qty) || 1), 0);
+  const cost = editingOrderDraft.items.reduce((a, i) => a + (Number(i.cost) || 0) * (Number(i.qty) || 1), 0);
+  const disc = Number($('om-disc').value) || 0;
+  const total = Math.max(0, subtotal - disc);
+
+  $('om-subtotal').textContent = fmt(subtotal);
+  $('om-cost').textContent = fmt(cost);
+  $('om-total').textContent = fmt(total);
+}
+
+function saveEditedOrder(shouldPrintBill) {
+  if (!editingOrderDraft) return;
+  if (!editingOrderDraft.items.length) return toast('Order must have at least 1 item');
+
+  const idx = orders.findIndex(o => o.id === editingOrderDraft.id);
+  if (idx < 0) return;
+
+  const subtotal = editingOrderDraft.items.reduce((a, i) => a + (Number(i.price) || 0) * (Number(i.qty) || 1), 0);
+  const totalCost = editingOrderDraft.items.reduce((a, i) => a + (Number(i.cost) || 0) * (Number(i.qty) || 1), 0);
+  const discount = Number($('om-disc').value) || 0;
+  const total = Math.max(0, subtotal - discount);
+  const profit = total - totalCost;
+
+  const updated = {
+    ...orders[idx],
+    customerName: $('om-cname').value.trim() || 'Table 1',
+    customerPhone: $('om-cphone').value.trim() || 'N/A',
+    paymentMethod: $('om-pay').value,
+    items: JSON.parse(JSON.stringify(editingOrderDraft.items)),
+    subtotal,
+    totalCost,
+    discount,
+    total,
+    profit,
+    status: shouldPrintBill ? 'COMPLETED' : orders[idx].status
+  };
+
+  orders[idx] = updated;
+  closeOrderModal();
+  save();
+  rOrders();
+  rAna();
+  toast('Order updated locally');
+
+  if (shouldPrintBill) {
+    printOrder(updated, false);
+  }
+}
+
+function finalizePendingBill(id) {
+  const o = orders.find(x => x.id === id);
+  if (!o) return;
+  o.status = 'COMPLETED';
+  save();
+  rOrders();
+  rAna();
+  printOrder(o, false);
+  toast(`Order ${o.invoiceNo} completed & printed`);
+}
+
+function reprint(id, kot) {
+  const o = orders.find(x => x.id === id);
+  if (o) printOrder(o, kot);
+}
+
+function delOrder(id) {
+  if (!confirm('Permanently delete this order record?')) return;
+  orders = orders.filter(o => o.id !== id);
+  selectedOrders.delete(id);
+  save();
+  rOrders();
+  rAna();
+  toast('Order removed');
+}
+
+/* ================= MENU MANAGEMENT ================= */
+function rMenu() {
+  const sel = $('mc');
+  const allCats = [...new Set(menu.map(m => m.category))];
+  const cs = ['ALL', ...allCats];
+  const cur = sel.value;
+
+  sel.innerHTML = cs.map(c => `<option value="${c}">${c === 'ALL' ? 'All Categories' : c}</option>`).join('');
+  sel.value = cs.includes(cur) ? cur : 'ALL';
+
+  const q = $('ms').value.toLowerCase().trim(), c = sel.value;
+  $('mb').innerHTML = menu.filter(m => (c === 'ALL' || m.category === c) && (m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q))).map(m => {
+    const costNum = Number(m.cost) || 0;
+    const priceNum = Number(m.price) || 0;
+    const g = priceNum - costNum;
+    return `
+      <tr>
+        <td class="font-bold text-gray-900">${m.name}</td>
+        <td><span class="px-1.5 py-0.5 rounded bg-vc text-vr text-[10px] font-bold border border-vg/30">${m.category}</span></td>
+        <td class="text-amber-800 font-bold">${fmt(costNum)}</td>
+        <td class="font-bold text-gray-900">${fmt(priceNum)}</td>
+        <td class="font-bold ${g >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${fmt(g)}</td>
+        <td class="text-right space-x-2 whitespace-nowrap">
+          <button type="button" onclick="openMenuModal('${m.id}')" class="px-2.5 py-1 rounded bg-blue-50 text-blue-700 font-bold hover:bg-blue-100">Edit</button>
+          <button type="button" onclick="delItem('${m.id}')" class="px-2.5 py-1 rounded bg-rose-50 text-rose-700 font-bold hover:bg-rose-100">Delete</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function populateModalCategoryDropdown(selectedCat) {
+  const existingCats = [...new Set([
+    'APPETIZER', 'CHICKEN', 'SOUP', 'SANDWICH', 'SHAKE', 'COFFEE',
+    'JUICE', 'DESSERT', 'MAIN DISH', 'ADDITIONAL', 'EXTRA',
+    'PAD THAI', 'CHOWMINE', 'STEAK', 'PASTA',
+    ...menu.map(m => m.category)
+  ])];
+
+  const dd = $('mm-cat-select');
+  const newInp = $('mm-cat-new');
+  dd.innerHTML = existingCats.map(c => `<option value="${c}">${c}</option>`).join('') + `<option value="__NEW__">+ Add New Category...</option>`;
+
+  if (selectedCat && existingCats.includes(selectedCat.toUpperCase())) {
+    dd.value = selectedCat.toUpperCase();
+    newInp.classList.add('hidden');
+    newInp.required = false;
+    newInp.value = '';
+  } else if (selectedCat) {
+    dd.value = '__NEW__';
+    newInp.classList.remove('hidden');
+    newInp.required = true;
+    newInp.value = selectedCat.toUpperCase();
+  } else {
+    dd.value = existingCats[0] || 'MAIN DISH';
+    newInp.classList.add('hidden');
+    newInp.required = false;
+    newInp.value = '';
+  }
+}
+
+function toggleNewCatInput() {
+  const isNew = $('mm-cat-select').value === '__NEW__';
+  const newInp = $('mm-cat-new');
+  newInp.classList.toggle('hidden', !isNew);
+  newInp.required = isNew;
+  if (isNew) newInp.focus();
+}
+
+function openMenuModal(id = null) {
+  const modal = $('menu-modal');
+  modal.classList.remove('hid');
+  if (id) {
+    const it = menu.find(m => m.id === id);
+    if (!it) return;
+    $('mm-title').textContent = 'Edit Menu Item: ' + it.name;
+    $('mm-id').value = it.id;
+    $('mm-name').value = it.name;
+    populateModalCategoryDropdown(it.category);
+    $('mm-cost').value = Number(it.cost) || 0;
+    $('mm-price').value = Number(it.price) || 0;
+  } else {
+    $('mm-title').textContent = 'Add New Menu Item';
+    $('mm-id').value = '';
+    $('mm-name').value = '';
+    populateModalCategoryDropdown('MAIN DISH');
+    $('mm-cost').value = '';
+    $('mm-price').value = '';
+  }
+}
+
+function closeMenuModal() {
+  $('menu-modal').classList.add('hid');
+}
+
+function saveMenuItem(e) {
+  e.preventDefault();
+  const id = $('mm-id').value;
+  const name = $('mm-name').value.trim();
+  const selVal = $('mm-cat-select').value;
+  const category = (selVal === '__NEW__' ? $('mm-cat-new').value.trim() : selVal).toUpperCase() || 'MAIN DISH';
+  const cost = Number($('mm-cost').value) || 0;
+  const price = Number($('mm-price').value) || 0;
+
+  if (!name) return;
+
+  if (id) {
+    const it = menu.find(m => m.id === id);
+    if (it) {
+      it.name = name;
+      it.category = category;
+      it.cost = cost;
+      it.price = price;
+    }
+  } else {
+    menu.unshift({ id: 'm' + Date.now(), name, category, cost, price });
+  }
+
+  closeMenuModal();
+  save();
+  rMenu();
+  cats();
+  grid();
+  toast('Menu item saved locally');
+}
+
+function delItem(id) {
+  if (!confirm('Are you sure you want to remove this item?')) return;
+  menu = menu.filter(m => m.id !== id);
+  save();
+  rMenu();
+  cats();
+  grid();
+  toast('Item deleted');
+}
+
+/* ================= EXPENSES & SAVINGS LOGIC ================= */
+function addExp(e) {
+  e.preventDefault();
+  exps.unshift({
+    id: 'EXP-' + Date.now(),
+    type: $('et').value,
+    category: $('ec').value,
+    amount: Number($('ea').value) || 0,
+    date: cleanYMD($('ed').value),
+    note: $('en').value.trim()
+  });
+  save();
+  $('ea').value = '';
+  $('en').value = '';
+  rExp();
+  rAna();
+  toast('Entry saved locally');
+}
+
+function rExp() {
+  const q = $('es').value.toLowerCase().trim();
+  const f = exps.filter(x => (!q || String(x.category || '').toLowerCase().includes(q) || String(x.note || '').toLowerCase().includes(q) || String(x.type || '').toLowerCase().includes(q)) && inR(x.date, 'e'));
+  $('eb').innerHTML = f.length ? f.map(x => {
+    let tagClass = 'bg-rose-100 text-rose-800';
+    if (x.type === 'Saving') tagClass = 'bg-blue-100 text-blue-800';
+    else if (x.type === 'Daily Cost') tagClass = 'bg-amber-100 text-amber-800';
+
+    return `
+      <tr>
+        <td class="text-gray-600 font-semibold">${cleanYMD(x.date)}</td>
+        <td><span class="px-2 py-0.5 rounded text-[10px] font-black ${tagClass}">${x.type}</span></td>
+        <td>
+          <div class="font-bold text-gray-900">${x.category}</div>
+          <div class="text-[11px] text-gray-500">${x.note}</div>
+        </td>
+        <td class="text-right font-black text-sm ${x.type === 'Saving' ? 'text-blue-700' : 'text-rose-600'}">${fmt(x.amount)}</td>
+        <td class="text-right">
+          <button type="button" onclick="delExp('${x.id}')" class="text-rose-500 font-bold px-2 py-1 rounded hover:bg-rose-50">Delete</button>
+        </td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="5" class="text-center py-8 text-gray-400">No logs found.</td></tr>';
+}
+
+function delExp(id) {
+  if (!confirm('Delete this transaction permanently?')) return;
+  exps = exps.filter(x => x.id !== id);
+  save();
+  rExp();
+  rAna();
+  toast('Transaction removed');
+}
+
+/* ================= PROFIT, LOSS & ANALYTICS ================= */
+function rAna() {
+  const includePending = $('includePendingAna') ? $('includePendingAna').checked : true;
+  const fo = orders.filter(o => {
+    const statusOk = includePending ? true : String(o.status || '').toUpperCase() !== 'PENDING';
+    return statusOk && inR(o.date, 'a');
+  });
+  const fe = exps.filter(x => inR(x.date, 'a'));
+
+  let sales = 0, cost = 0, pays = { Cash: 0, bKash: 0, Nagad: 0, Bank: 0 }, prod = {};
+  fo.forEach(o => {
+    sales += Number(o.total) || 0;
+    cost += Number(o.totalCost) || 0;
+    if (pays[o.paymentMethod] !== undefined) pays[o.paymentMethod] += Number(o.total) || 0;
+    const custLabel = o.customerName || 'Table 1';
+    (o.items || []).forEach(i => {
+      const qNum = Number(i.qty) || 1;
+      const pNum = Number(i.price) || 0;
+      const cNum = Number(i.cost) || 0;
+      const p = prod[i.name] || (prod[i.name] = { name: i.name, category: i.category || 'ITEM', qty: 0, rev: 0, cost: 0, customers: {} });
+      p.qty += qNum;
+      p.rev += pNum * qNum;
+      p.cost += cNum * qNum;
+      p.customers[custLabel] = (p.customers[custLabel] || 0) + qNum;
+    });
+  });
+
+  const dailyKitchenCost = fe.filter(x => x.type === 'Daily Cost').reduce((a, x) => a + (Number(x.amount) || 0), 0);
+  const operationalExp = fe.filter(x => x.type === 'Expense').reduce((a, x) => a + (Number(x.amount) || 0), 0);
+  const ownerSavings = fe.filter(x => x.type === 'Saving').reduce((a, x) => a + (Number(x.amount) || 0), 0);
+
+  const grossMargin = sales - cost;
+  const netProfit = grossMargin - operationalExp;
+
+  const card = (title, val, sub, colorClass = '', bgClass = 'card') => `
+    <div class="${bgClass} p-3.5 ${colorClass} shadow-sm">
+      <p class="text-[10px] font-black uppercase tracking-wider opacity-75">${title}</p>
+      <h3 class="text-xl font-extrabold mt-1 tracking-tight">${val}</h3>
+      <p class="text-[10px] mt-0.5 opacity-80">${sub}</p>
+    </div>
+  `;
+
+  $('kpis').innerHTML =
+    card('Total Food Sales', fmt(sales), `${fo.length} Orders`, 'text-gray-900') +
+    card('Theoretical Food Cost', fmt(cost), 'Calculated Recipe Cost', 'text-amber-800 border-amber-200') +
+    card('Food Gross Margin', fmt(grossMargin), 'Sales − Recipe Cost', 'text-emerald-700 border-emerald-200') +
+    card('Daily Kitchen Bazar', fmt(dailyKitchenCost), 'Logged Raw Purchases', 'text-orange-700 border-orange-200') +
+    card('Operational Expense', fmt(operationalExp), 'Rent, Utilities, Staff', 'text-rose-700 border-rose-200') +
+    card('Owner Cash Savings', fmt(ownerSavings), 'Bank Deposits / Reserve', 'text-blue-800 border-blue-200 bg-blue-50/50') +
+    `<div class="col-span-2 lg:col-span-6 bg-vd text-vg p-4 rounded-2xl border-2 border-vg shadow-lg flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p class="text-[11px] font-bold uppercase tracking-widest text-yellow-100/90">Net Restaurant Profit (After OpEx)</p>
+        <h2 class="text-3xl font-black mt-0.5">${fmt(netProfit)}</h2>
+      </div>
+      <div class="text-right text-xs text-white/80">
+        <div>Gross Margin: <b>${fmt(grossMargin)}</b></div>
+        <div>Operational Expense: <b>${fmt(operationalExp)}</b></div>
+      </div>
+    </div>`;
+
+  $('pk').innerHTML = Object.entries(pays).map(([n, v]) => `
+    <div class="card p-3 shadow-sm border-l-4 ${v > 0 ? 'border-vr' : 'border-gray-200'}">
+      <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">${n} Collection</span>
+      <p class="text-lg font-black text-gray-800 mt-0.5">${fmt(v)}</p>
+    </div>
+  `).join('');
+
+  const rows = Object.values(prod).sort((a, b) => b.rev - a.rev);
+  $('ab').innerHTML = rows.length ? rows.map(p => {
+    const g = p.rev - p.cost;
+    const custList = Object.entries(p.customers).map(([cName, cQty]) => `${cName} (×${cQty})`).join(', ');
+    return `
+      <tr>
+        <td class="font-bold text-gray-900">${p.name}</td>
+        <td><span class="text-[10px] font-bold text-vr px-1.5 py-0.5 rounded bg-vc border border-vg/20">${p.category}</span></td>
+        <td class="text-xs text-gray-700 font-medium max-w-[220px]">${custList || '-'}</td>
+        <td class="text-center font-bold">${p.qty}</td>
+        <td class="text-right font-bold text-gray-900">${fmt(p.rev)}</td>
+        <td class="text-right text-amber-800 font-bold">${fmt(p.cost)}</td>
+        <td class="text-right font-black ${g >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${fmt(g)}</td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="7" class="text-center py-8 text-gray-400">No item sales recorded in this date range.</td></tr>';
+}
+
+/* ================= INITIALIZATION ================= */
+$('dr-o').innerHTML = dr('o', 'rOrders');
+$('dr-e').innerHTML = dr('e', 'rExp');
+$('dr-a').innerHTML = dr('a', 'rAna');
+
+['o-f', 'o-t', 'e-f', 'e-t', 'a-f', 'a-t', 'ed'].forEach(i => $(i).value = todayStr());
+
+$('ec').innerHTML = [
+  'Daily Kitchen Bazar',
+  'Meat, Fish & Poultry',
+  'Vegetables & Dairy',
+  'Staff Salaries & Tips',
+  'Restaurant Rent',
+  'Electricity, Gas & Water',
+  'Thermal Paper & Packaging',
+  'Owner Cash Saving',
+  'Miscellaneous'
+].map(c => `<option>${c}</option>`).join('');
+
+updateBtUI(false, savedBtName);
+cats();
+grid();
+rPays();
+rCart();
+switchTab('pos');
+checkAuth();
+</script>
+</body>
+</html>

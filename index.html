@@ -99,31 +99,6 @@ td{padding:9px 12px;vertical-align:top}
 </head>
 <body class="min-h-screen text-sm">
 
-<!-- LOGIN SCREEN -->
-<div id="login-overlay" class="fixed inset-0 bg-stone-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-  <div class="card max-w-sm w-full p-6 shadow-2xl border-vg text-center space-y-4">
-    <div class="w-16 h-16 mx-auto rounded-2xl bg-vd flex items-center justify-center border-2 border-vg">
-      <span class="text-vg font-bold text-2xl" style="font-family:Cinzel">V</span>
-    </div>
-    <div>
-      <h2 class="text-xl font-black text-vd" style="font-family:Cinzel">VESTRO</h2>
-      <p class="text-xs text-gray-500 font-semibold tracking-wider uppercase mt-1">Local POS Access</p>
-    </div>
-    <form onsubmit="handleLogin(event)" class="space-y-3 pt-2 text-left">
-      <div>
-        <label class="text-[11px] font-bold text-gray-600 block mb-1">Username</label>
-        <input id="l-user" type="text" required class="in !py-2.5 font-bold" placeholder="Username">
-      </div>
-      <div>
-        <label class="text-[11px] font-bold text-gray-600 block mb-1">Password</label>
-        <input id="l-pass" type="password" required class="in !py-2.5 font-bold" placeholder="••••••••">
-      </div>
-      <p id="l-err" class="text-xs text-rose-600 font-bold hidden text-center">Invalid credentials</p>
-      <button type="submit" class="b bg-vr w-full !py-2.5 !text-sm !font-black shadow-lg">Authenticate</button>
-    </form>
-  </div>
-</div>
-
 <!-- MENU ITEM EDIT / ADD MODAL -->
 <div id="menu-modal" class="hid fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
   <div class="card max-w-md w-full p-5 shadow-2xl border-vg space-y-3">
@@ -243,7 +218,6 @@ td{padding:9px 12px;vertical-align:top}
    </div>
    <button type="button" id="btBtn" onclick="toggleBluetooth()" class="b bg-blue-600">Connect BT</button>
    <button type="button" onclick="testPrint()" class="b bg-emerald-600">Test 58mm</button>
-   <button type="button" onclick="logout()" class="b bg-neutral-800 text-rose-300">Exit</button>
   </div>
  </div>
 </header>
@@ -475,10 +449,7 @@ td{padding:9px 12px;vertical-align:top}
 <div id="toast" class="hid fixed bottom-4 right-4 bg-gray-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl z-50"></div>
 
 <script>
-/* ================= LOCAL AUTHENTICATION & CONFIG ================= */
-const AUTH_USER = "saif";
-const AUTH_PASS = "1952";
-
+/* ================= CONFIG & LOCAL STORAGE ================= */
 const $ = id => document.getElementById(id);
 const fmt = n => '৳' + Number(n || 0).toLocaleString();
 
@@ -533,33 +504,6 @@ function toast(m){
   toast.h = setTimeout(() => t.classList.add('hid'), 2600);
 }
 
-/* ================= AUTHENTICATION ================= */
-function checkAuth() {
-  const authed = sessionStorage.getItem('vestro_auth') === 'true';
-  $('login-overlay').classList.toggle('hid', authed);
-}
-
-function handleLogin(e) {
-  e.preventDefault();
-  const u = $('l-user').value.trim();
-  const p = $('l-pass').value.trim();
-  if (u === AUTH_USER && p === AUTH_PASS) {
-    sessionStorage.setItem('vestro_auth', 'true');
-    $('login-overlay').classList.add('hid');
-    $('l-err').classList.add('hidden');
-    refreshActiveViews();
-  } else {
-    $('l-err').classList.remove('hidden');
-  }
-}
-
-function logout() {
-  sessionStorage.removeItem('vestro_auth');
-  $('l-user').value = '';
-  $('l-pass').value = '';
-  checkAuth();
-}
-
 /* ================= PURE LOCAL STORAGE ENGINE ================= */
 function save() {
   try {
@@ -569,15 +513,6 @@ function save() {
   } catch (e) {
     console.error('LocalStorage write failed:', e);
   }
-}
-
-function refreshActiveViews() {
-  cats();
-  grid();
-  rOrders();
-  rMenu();
-  rExp();
-  rAna();
 }
 
 /* ================= 58MM BLUETOOTH & THERMAL CORE ================= */
@@ -1638,7 +1573,6 @@ grid();
 rPays();
 rCart();
 switchTab('pos');
-checkAuth();
 </script>
 </body>
 </html>
